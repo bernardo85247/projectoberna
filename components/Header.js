@@ -1,33 +1,31 @@
 'use client';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import Logo from './Logo';
 import { supabase } from '../lib/supabase';
+import { ROLES, MODULOS } from '../lib/roles';
 
-const ROLES = {
-  superadmin: 'Super admin',
-  admin: 'Admin',
-  patient: 'Paciente',
-};
-
-export default function Header({ profile }) {
+export default function Header({ profile, modules = [] }) {
   const router = useRouter();
+  const path = usePathname();
   async function logout() {
     await supabase.auth.signOut();
     router.replace('/');
   }
   return (
     <header className="topbar">
-      <Logo size={44} />
+      <Logo size={40} />
+      <nav className="nav" aria-label="Módulos">
+        {Object.entries(MODULOS).filter(([k]) => modules.includes(k)).map(([k, m]) => (
+          <Link key={k} href={m.href} className={path === m.href ? 'active' : ''}>{m.label}</Link>
+        ))}
+      </nav>
       <div className="topbar-user">
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.25 }}>
+        <div className="who">
           <span>{profile.full_name || 'Mi cuenta'}</span>
-          {ROLES[profile.role] && (
-            <small style={{ fontSize: 12, fontWeight: 600, color: '#0B5C66', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              {ROLES[profile.role]}
-            </small>
-          )}
+          {ROLES[profile.role] && <small className={`badge role-${profile.role}`}>{ROLES[profile.role]}</small>}
         </div>
-        <button className="btn btn-ghost" onClick={logout}>Cerrar sesión</button>
+        <button className="btn btn-ghost btn-sm" onClick={logout}>Cerrar sesión</button>
       </div>
     </header>
   );
