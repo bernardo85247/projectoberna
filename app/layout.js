@@ -4,7 +4,7 @@ import './globals.css';
 const font = Figtree({ subsets: ['latin'], weight: ['400', '500', '600', '700'] });
 
 export const metadata = {
-  title: 'LabClaro | Resultados de laboratorio',
+  title: 'Laboratorio Lina Mendoza | Resultados de laboratorio',
   description: 'Consulta y descarga tus resultados de laboratorio de forma segura.',
 };
 
