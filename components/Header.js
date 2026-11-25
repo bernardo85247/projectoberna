@@ -11,7 +11,7 @@ export default function Header({ profile }) {
   }
   return (
     <header className="topbar">
-      <Logo size={34} />
+      <Logo size={44} />
       <div className="topbar-user">
         <span>{profile.full_name || 'Mi cuenta'}</span>
         <button className="btn btn-ghost" onClick={logout}>Cerrar sesión</button>
