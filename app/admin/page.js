@@ -4,6 +4,27 @@ import Header from '../../components/Header';
 import { supabase } from '../../lib/supabase';
 import { useProfile } from '../../lib/useProfile';
 
+// Lista de exámenes sugeridos. Edita, agrega o quita nombres aquí.
+const EXAMENES = [
+  'Hemograma completo',
+  'Glucosa en ayunas',
+  'Perfil lipídico',
+  'Colesterol total',
+  'Triglicéridos',
+  'Creatinina',
+  'Uroanálisis (orina)',
+  'Coprológico (heces)',
+  'Perfil hepático',
+  'Perfil tiroideo (TSH)',
+  'Hemoglobina glicosilada (HbA1c)',
+  'Ácido úrico',
+  'Prueba de embarazo (hCG)',
+  'Tiempo de protrombina (PT)',
+  'Proteína C reactiva (PCR)',
+  'Vitamina D',
+  'Examen de prueba',
+];
+
 export default function Admin() {
   const profile = useProfile('admin');
   const [patients, setPatients] = useState([]);
@@ -58,7 +79,19 @@ export default function Admin() {
               {patients.map((p) => <option key={p.id} value={p.id}>{p.full_name} · {p.document_id || 'sin documento'}</option>)}
             </select>
           </label>
-          <label>Nombre del examen<input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Hemograma completo" /></label>
+          <label>Nombre del examen
+            <input
+              required
+              list="lista-examenes"
+              autoComplete="off"
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              placeholder="Elige de la lista o escribe el examen"
+            />
+            <datalist id="lista-examenes">
+              {EXAMENES.map((nombre) => <option key={nombre} value={nombre} />)}
+            </datalist>
+          </label>
           <label>Archivo PDF<input type="file" accept="application/pdf" required onChange={(e) => setForm({ ...form, file: e.target.files[0] })} /></label>
           {msg && <p className={`msg ${msg.type}`} role="alert">{msg.text}</p>}
           <button className="btn" disabled={busy}>{busy ? 'Subiendo…' : 'Publicar resultado'}</button>
