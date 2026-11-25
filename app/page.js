@@ -1,117 +1,105 @@
 'use client';
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import Logo from '../components/Logo';
-import { supabase } from '../lib/supabase';
+import { useCallback, useEffect, useState } from 'react';
+import Header from '../../components/Header';
+import { supabase } from '../../lib/supabase';
+import { useProfile } from '../../lib/useProfile';
+import { authFetch } from '../../lib/api';
 
-export default function Login() {
-  const router = useRouter();
-  const [mode, setMode] = useState('login');
-  const [method, setMethod] = useState('email'); // 'email' | 'cedula'
-  const [form, setForm] = useState({ email: '', password: '', full_name: '', document_id: '' });
+// Lista de exámenes sugeridos. Edita, agrega o quita nombres aquí.
+const EXAMENES = [
+  'Hemograma completo', 'Glucosa en ayunas', 'Perfil lipídico', 'Colesterol total', 'Triglicéridos',
+  'Creatinina', 'Uroanálisis (orina)', 'Coprológico (heces)', 'Perfil hepático', 'Perfil tiroideo (TSH)',
+  'Hemoglobina glicosilada (HbA1c)', 'Ácido úrico', 'Prueba de embarazo (hCG)', 'Tiempo de protrombina (PT)',
+  'Proteína C reactiva (PCR)', 'Vitamina D',
+];
+
+// MÓDULO 2 — Subir un resultado y asignarlo a un paciente (admin y superadmin).
+export default function Subir() {
+  const { profile, modules, denied } = useProfile('subir');
+  const [cedula, setCedula] = useState('');
+  const [patient, setPatient] = useState(null);
+  const [title, setTitle] = useState('');
+  const [file, setFile] = useState(null);
+  const [recent, setRecent] = useState([]);
   const [msg, setMsg] = useState(null);
   const [busy, setBusy] = useState(false);
 
-  const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
-  const setDigits = (k) => (e) => setForm({ ...form, [k]: e.target.value.replace(/\D/g, '') });
+  const load = useCallback(async () => {
+    const { data } = await supabase.from('lab_results')
+      .select('id, title, created_at, patient:profiles!lab_results_patient_id_fkey(full_name)')
+      .order('created_at', { ascending: false }).limit(8);
+    setRecent(data || []);
+  }, []);
+  useEffect(() => { if (profile && !denied) load(); }, [profile, denied, load]);
 
-  async function goToPortal() {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-    const { data } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
-    const isAdmin = data?.role === 'admin' || data?.role === 'superadmin';
-    router.replace(isAdmin ? '/admin' : '/portal');
+  async function buscarPaciente() {
+    setMsg(null); setPatient(null);
+    const { data } = await supabase.from('profiles').select('id, full_name, document_id')
+      .eq('document_id', cedula).eq('role', 'patient').maybeSingle();
+    if (!data) return setMsg({ type: 'error', text: 'No existe un paciente con esa cédula.' });
+    setPatient(data);
   }
 
-  useEffect(() => { goToPortal(); }, []); // eslint-disable-line
-
-  async function loginWithCedula() {
-    const res = await fetch('/api/login-cedula', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ document_id: form.document_id, password: form.password }),
-    });
-    const out = await res.json().catch(() => ({}));
-    if (!res.ok) return setMsg({ type: 'error', text: out.error || 'Cédula o contraseña incorrectas.' });
-    const { error } = await supabase.auth.setSession({
-      access_token: out.access_token,
-      refresh_token: out.refresh_token,
-    });
-    if (error) return setMsg({ type: 'error', text: 'No pudimos iniciar la sesión. Intenta de nuevo.' });
-    await goToPortal();
-  }
-
-  async function submit(e) {
+  async function upload(e) {
     e.preventDefault();
+    if (!patient) return setMsg({ type: 'error', text: 'Primero busca y confirma al paciente.' });
+    if (!file || file.type !== 'application/pdf') return setMsg({ type: 'error', text: 'Selecciona un archivo PDF.' });
     setBusy(true); setMsg(null);
-    if (mode === 'login') {
-      if (method === 'cedula') {
-        await loginWithCedula();
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({ email: form.email, password: form.password });
-        if (error) setMsg({ type: 'error', text: 'Correo o contraseña incorrectos.' });
-        else await goToPortal();
-      }
-    } else {
-      const { data, error } = await supabase.auth.signUp({
-        email: form.email,
-        password: form.password,
-        options: { data: { full_name: form.full_name, document_id: form.document_id } },
-      });
-      if (error) setMsg({ type: 'error', text: error.message });
-      else if (data.session) await goToPortal();
-      else setMsg({ type: 'ok', text: 'Cuenta creada. Revisa tu correo para confirmarla y luego inicia sesión.' });
+    const fd = new FormData();
+    fd.append('patient_id', patient.id); fd.append('title', title); fd.append('file', file);
+    const res = await authFetch('/api/archivos', { method: 'POST', body: fd });
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok) setMsg({ type: 'error', text: out.error || 'No se pudo publicar el resultado.' });
+    else {
+      setMsg({ type: 'ok', text: `Resultado publicado para ${patient.full_name}.` });
+      setTitle(''); setFile(null); setPatient(null); setCedula(''); e.target.reset(); load();
     }
     setBusy(false);
   }
 
-  const small = { padding: '8px 14px', fontSize: 14 };
-
+  if (!profile) return <p className="loading">Cargando…</p>;
   return (
-    <main className="auth">
-      <section className="auth-side">
-        <Logo size={46} />
-        <h1>Tus resultados, claros y a un clic.</h1>
-        <p>Consulta y descarga tus exámenes de laboratorio en PDF, desde cualquier dispositivo.</p>
-      </section>
-      <section className="auth-card">
-        <div className="tabs" role="tablist">
-          <button role="tab" aria-selected={mode === 'login'} onClick={() => { setMode('login'); setMsg(null); }}>Ingresar</button>
-          <button role="tab" aria-selected={mode === 'signup'} onClick={() => { setMode('signup'); setMsg(null); }}>Crear cuenta</button>
-        </div>
+    <>
+      <Header profile={profile} modules={modules} />
+      <main className="page">
+        {denied ? <div className="empty"><p>No tienes acceso a este módulo.</p></div> : (
+          <>
+            <h2>Subir resultado</h2>
+            <p className="sub">El PDF se guarda en el equipo del laboratorio y queda asignado al paciente.</p>
+            <form className="card" onSubmit={upload}>
+              <label>Cédula del paciente
+                <div className="search">
+                  <input required inputMode="numeric" minLength={5} maxLength={15} value={cedula}
+                    onChange={(e) => { setCedula(e.target.value.replace(/\D/g, '')); setPatient(null); }} />
+                  <button type="button" className="btn btn-ghost" onClick={buscarPaciente} disabled={cedula.length < 5}>Buscar</button>
+                </div>
+              </label>
+              {patient && <p className="msg ok">Paciente: <strong>{patient.full_name}</strong></p>}
+              <label>Nombre del examen
+                <input required list="lista-examenes" autoComplete="off" value={title}
+                  onChange={(e) => setTitle(e.target.value)} placeholder="Elige de la lista o escribe el examen" />
+                <datalist id="lista-examenes">{EXAMENES.map((n) => <option key={n} value={n} />)}</datalist>
+              </label>
+              <label>Archivo PDF (máx. 4 MB)
+                <input type="file" accept="application/pdf" required onChange={(e) => setFile(e.target.files[0])} />
+              </label>
+              {msg && <p className={`msg ${msg.type}`} role="alert">{msg.text}</p>}
+              <button className="btn" disabled={busy}>{busy ? 'Subiendo…' : 'Publicar resultado'}</button>
+            </form>
 
-        {mode === 'login' && (
-          <div style={{ display: 'flex', gap: 8, margin: '16px 0 4px' }}>
-            <button type="button" className={method === 'email' ? 'btn' : 'btn btn-ghost'} style={small} onClick={() => { setMethod('email'); setMsg(null); }}>Con correo</button>
-            <button type="button" className={method === 'cedula' ? 'btn' : 'btn btn-ghost'} style={small} onClick={() => { setMethod('cedula'); setMsg(null); }}>Con cédula</button>
-          </div>
+            <h2>Últimos publicados</h2>
+            {recent.length === 0 && <div className="empty"><p>Todavía no hay resultados publicados.</p></div>}
+            <ul className="list">
+              {recent.map((r) => (
+                <li key={r.id} className="row">
+                  <div><strong>{r.title}</strong>
+                    <span>{r.patient?.full_name} · {new Date(r.created_at).toLocaleDateString('es-CO', { dateStyle: 'medium' })}</span></div>
+                </li>
+              ))}
+            </ul>
+          </>
         )}
-
-        <form onSubmit={submit}>
-          {mode === 'signup' && (
-            <>
-              <label>Nombre completo<input required value={form.full_name} onChange={set('full_name')} autoComplete="name" /></label>
-              <label>Documento de identidad<input required value={form.document_id} onChange={setDigits('document_id')} inputMode="numeric" minLength={5} maxLength={15} pattern="[0-9]{5,15}" title="Solo números, entre 5 y 15 dígitos" /></label>
-            </>
-          )}
-
-          {mode === 'login' && method === 'cedula' ? (
-            <label>Número de cédula<input required value={form.document_id} onChange={setDigits('document_id')} inputMode="numeric" minLength={5} maxLength={15} autoComplete="username" placeholder="Solo números" /></label>
-          ) : (
-            <label>Correo electrónico<input type="email" required value={form.email} onChange={set('email')} autoComplete="email" /></label>
-          )}
-
-          <label>Contraseña<input type="password" required minLength={8} value={form.password} onChange={set('password')} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} /></label>
-          {msg && <p className={`msg ${msg.type}`} role="alert">{msg.text}</p>}
-          <button className="btn" disabled={busy}>{busy ? 'Un momento…' : mode === 'login' ? 'Ingresar' : 'Crear cuenta'}</button>
-          {mode === 'login' && (
-            <p style={{ marginTop: 14, fontSize: 14 }}>
-              <Link href="/reset-password">¿Olvidaste tu contraseña?</Link>
-            </p>
-          )}
-        </form>
-      </section>
-    </main>
+      </main>
+    </>
   );
 }
