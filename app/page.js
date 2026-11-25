@@ -47,7 +47,7 @@ export default function Login() {
   return (
     <main className="auth">
       <section className="auth-side">
-        <Logo size={46} />
+        <Logo size={64} />
         <h1>Tus resultados, claros y a un clic.</h1>
         <p>Consulta y descarga tus exámenes de laboratorio en PDF, desde cualquier dispositivo.</p>
       </section>
