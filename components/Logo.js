@@ -1,4 +1,4 @@
-export default function Logo({ size = 48, text = true }) {
+export default function Logo({ size = 60, text = true }) {
   return (
     <span className="logo">
       <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true">
