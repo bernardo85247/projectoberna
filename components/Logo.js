@@ -1,10 +1,10 @@
-export default function Logo({ size = 40, text = true }) {
+export default function Logo({ size = 48, text = true }) {
   return (
     <span className="logo">
       <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true">
-        <path d="M32 5C32 5 12 27 12 40a20 20 0 0 0 40 0C52 27 32 5 32 5Z" fill="#0B5C66"/>
-        <path d="M20 31v15h9M34 46V31l5.5 8L45 31v15" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/>
-        <circle cx="48" cy="14" r="5" fill="#2BB3A8"/>
+        <path d="M32 2C32 2 6 24 6 36a26 26 0 0 0 52 0C58 24 32 2 32 2Z" fill="#0B5C66"/>
+        <path d="M17 28v20h11M34 48V28l7 10 7-10v20" fill="none" stroke="#fff" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round"/>
+        <circle cx="53" cy="12" r="6" fill="#2BB3A8"/>
       </svg>
       {text && <span className="logo-text">Laboratorio <b>Lina Mendoza</b></span>}
     </span>
