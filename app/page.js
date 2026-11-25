@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Logo from '../components/Logo';
 import { supabase } from '../lib/supabase';
@@ -17,7 +18,8 @@ export default function Login() {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
     const { data } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
-    router.replace(data?.role === 'admin' ? '/admin' : '/portal');
+    const isAdmin = data?.role === 'admin' || data?.role === 'superadmin';
+    router.replace(isAdmin ? '/admin' : '/portal');
   }
 
   useEffect(() => { goToPortal(); }, []); // eslint-disable-line
@@ -65,6 +67,11 @@ export default function Login() {
           <label>Contraseña<input type="password" required minLength={8} value={form.password} onChange={set('password')} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} /></label>
           {msg && <p className={`msg ${msg.type}`} role="alert">{msg.text}</p>}
           <button className="btn" disabled={busy}>{busy ? 'Un momento…' : mode === 'login' ? 'Ingresar' : 'Crear cuenta'}</button>
+          {mode === 'login' && (
+            <p style={{ marginTop: 14, fontSize: 14 }}>
+              <Link href="/reset-password">¿Olvidaste tu contraseña?</Link>
+            </p>
+          )}
         </form>
       </section>
     </main>
